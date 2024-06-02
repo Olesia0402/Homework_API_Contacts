@@ -2,7 +2,8 @@ from typing import List
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy.orm import Session
+from fastapi_limiter.depends import RateLimiter
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, extract
 
 from src.database.db import get_db
@@ -18,22 +19,24 @@ class SomeDuplicateEmailException(Exception):
     pass
 
 
-@router.get("/", response_model=List[ContactResponse])
-async def read_contacts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+@router.get("/", response_model=List[ContactResponse], description='No more than 10 requests per minute',
+            dependencies=[Depends(RateLimiter(times=10, seconds=60))])
+async def read_contacts(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contacts = await repository_contacts.get_contacts(skip, limit, current_user, db)
     return contacts
 
 
 @router.get("/{contact_id}", response_model=ContactResponse)
-async def read_contact(contact_id: int, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def read_contact(contact_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contact = await repository_contacts.get_contact(contact_id, current_user, db)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
     return contact
 
 
-@router.post("/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
-async def create_contact(body: ContactCreate, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+@router.post("/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED, description='No more than 2 contact per 5 minutes',
+            dependencies=[Depends(RateLimiter(times=2, seconds=300))])
+async def create_contact(body: ContactCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     try:
         return await repository_contacts.create_contact(body, current_user, db)
     except SomeDuplicateEmailException as e:
@@ -43,7 +46,7 @@ async def create_contact(body: ContactCreate, db: Session = Depends(get_db), cur
 
 
 @router.put("/{contact_id}", response_model=ContactResponse)
-async def update_contact(body: ContactUpdate, contact_id: int, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def update_contact(body: ContactUpdate, contact_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contact = await repository_contacts.update_contact(contact_id, body, current_user, db)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
@@ -51,7 +54,7 @@ async def update_contact(body: ContactUpdate, contact_id: int, db: Session = Dep
 
 
 @router.patch("/{contact_id}", response_model=ContactResponse)
-async def update_status_contact(body: ContactStatusUpdate, contact_id: int, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def update_status_contact(body: ContactStatusUpdate, contact_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contact = await repository_contacts.update_status_contact(contact_id, body, current_user, db)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
@@ -59,7 +62,7 @@ async def update_status_contact(body: ContactStatusUpdate, contact_id: int, db: 
 
 
 @router.delete("/{contact_id}", response_model=ContactResponse)
-async def remove_contact(contact_id: int, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def remove_contact(contact_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contact = await repository_contacts.remove_contact(contact_id, current_user, db)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
@@ -67,7 +70,7 @@ async def remove_contact(contact_id: int, db: Session = Depends(get_db), current
 
 
 @router.get("/?first_name={contact_first_name}", response_model=List[ContactResponse])
-async def search_contact_by_first_name(contact_first_name: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def search_contact_by_first_name(contact_first_name: str, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contacts = await repository_contacts.get_contacts(skip, limit, current_user, db)
     results = [contact for contact in contacts if contact_first_name.lower() in contact.first_name.lower()]
     if not results:
@@ -76,7 +79,7 @@ async def search_contact_by_first_name(contact_first_name: str, skip: int = 0, l
 
 
 @router.get("/?last_name={contact_last_name}", response_model=List[ContactResponse])
-async def search_contact_by_last_name(contact_last_name: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def search_contact_by_last_name(contact_last_name: str, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contacts = await repository_contacts.get_contacts(skip, limit, current_user, db)
     results = [contact for contact in contacts if contact_last_name.lower() in contact.last_name.lower()]
     if not results:
@@ -85,7 +88,7 @@ async def search_contact_by_last_name(contact_last_name: str, skip: int = 0, lim
 
 
 @router.get("/?email={contact_email}", response_model=List[ContactResponse])
-async def search_contact_by_first_name(contact_email: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def search_contact_by_first_name(contact_email: str, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     contacts = await repository_contacts.get_contacts(skip, limit, current_user, db)
     results = [contact for contact in contacts if contact_email.lower() in contact.email.lower()]
     if not results:
@@ -94,7 +97,7 @@ async def search_contact_by_first_name(contact_email: str, skip: int = 0, limit:
 
 
 @router.get("/birthday/{days}", response_model=List[ContactResponse])
-async def get_birthday_contacts(days: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+async def get_birthday_contacts(days: int, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
     current_day = datetime.now()
     end_date = current_day + timedelta(days=days)
     contacts = await db.query(repository_contacts.Contact).filter(

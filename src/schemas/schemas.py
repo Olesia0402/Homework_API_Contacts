@@ -14,6 +14,8 @@ class UserDb(BaseModel):
     username: str
     email: str
     created_at: datetime | None
+    avatar: str
+    confirmed: bool
 
     class Config:
         orm_mode = True
@@ -63,3 +65,7 @@ class ContactResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class RequestEmail(BaseModel):
+    email: EmailStr
