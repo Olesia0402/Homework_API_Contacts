@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, func, Table, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.sql.sqltypes import DateTime
@@ -15,6 +15,8 @@ class User(Base):
     email = Column(String(250), nullable=False, unique=True)
     password = Column(String(255), nullable=False)
     created_at = Column('crated_at', DateTime, default=func.now(), nullable=True)
+    avatar = Column(String(255), nullable=True)
+    confirmed = Column(Boolean, default=False, nullable=True)
     refresh_token = Column(String(255), nullable=True)
 
     contacts = relationship("Contact", back_populates="user")
