@@ -18,7 +18,7 @@ class UserDb(BaseModel):
     confirmed: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserResponse(BaseModel):
@@ -51,7 +51,7 @@ class Contact(ContactBase):
     created_at: datetime
 
 
-class ContactUpdate(BaseModel):
+class ContactUpdate(ContactBase):
     done: bool
 
 
@@ -64,7 +64,7 @@ class ContactResponse(BaseModel):
     detail: str = "Contact successfully created"
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RequestEmail(BaseModel):

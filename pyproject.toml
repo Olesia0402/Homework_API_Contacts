@@ -20,7 +20,18 @@ aioredis = "^2.0.1"
 cloudinary = "^1.40.0"
 pydantic-settings = "^2.2.1"
 asyncpg = "^0.29.0"
+aiosqlite = "^0.20.0"
+fastapi-lifespan-manager = "^0.1.4"
 
+
+[tool.poetry.group.dev.dependencies]
+sphinx = "^7.3.7"
+
+
+[tool.poetry.group.tests.dependencies]
+pytest = "^8.2.2"
+pytest-cov = "^5.0.0"
+pytest-asyncio = "^0.23.7"
 
 [build-system]
 requires = ["poetry-core"]
