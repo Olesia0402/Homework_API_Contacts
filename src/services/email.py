@@ -23,6 +23,27 @@ conf = ConnectionConfig(
 
 
 async def send_confirm_email(email: EmailStr, username: str, host: str):
+    
+    """
+    Sends a confirmation email to the user with a link to confirm their email address.
+
+    The function takes the following parameters:
+    
+    Args:
+        email (EmailStr): The user's email address. This is used both as the recipient of the message and as part of
+        token_verification.
+        username (str): The username of the user who is registering. This is used to personalize the message.
+        host (str): The host of the server. This is used to generate the confirmation link.
+    Returns:
+        None
+
+    :param email: EmailStr: Specify the email address of the user
+    :param username: str: Get the username of the user who is registering
+    :param host: str: Get the host of the server
+    :return: None
+    :doc-author: Trelent
+    """
+    
     try:
         token_verification = await auth_service.create_email_token({"sub": email})
         message = MessageSchema(
@@ -39,6 +60,17 @@ async def send_confirm_email(email: EmailStr, username: str, host: str):
 
 
 async def send_reset_email(email: EmailStr, username: str, host: str):
+    
+    """
+    The send_reset_email function sends a password reset email to the user.
+
+    :param email: EmailStr: Validate the email address
+    :param username: str: Identify the user in the database
+    :param host: str: Pass the hostname of the server to send_reset_email function
+    :return: A coroutine
+    :doc-author: Trelent
+    """
+    
     try:
         token_verification = auth_service.create_access_token({"username": username})
         message = MessageSchema(
@@ -55,6 +87,21 @@ async def send_reset_email(email: EmailStr, username: str, host: str):
 
 
 async def send_update_email(email: EmailStr, username: str, host: str):
+    
+    """
+    The send_update_email function sends an email to the user with a link to reset their password.
+        Args:
+            email (str): The user's email address.
+            username (str): The username of the account that needs its password reset.
+            host (str): The hostname of the server where this function is being called from.
+
+    :param email: EmailStr: Specify the email address of the recipient
+    :param username: str: Identify the user
+    :param host: str: Pass the hostname of the server to
+    :return: A coroutine, which is an object that can be awaited
+    :doc-author: Trelent
+    """
+    
     try:
         message = MessageSchema(
             subject="Reset password",
