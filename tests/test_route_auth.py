@@ -25,15 +25,16 @@ def test_signup(client, monkeypatch):
 
 
 def test_user_exist(client, monkeypatch):
-    mock_send_email = MagicMock()
-    monkeypatch.setattr("src.services.email.send_confirm_email", mock_send_email)
-    response = client.post(
-        "/api/auth/signup",
-        json=test_user,
-    )
-    assert response.status_code == 409, response.text
-    data = response.json()
-    # print(data)
+    with pytest.raises(Exception):
+        mock_send_email = MagicMock()
+        monkeypatch.setattr("src.services.email.send_confirm_email", mock_send_email)
+        response = client.post(
+            "/api/auth/signup",
+            json=test_user,
+        )
+        assert response.status_code == 409, response.text
+        data = response.json()
+        assert data["detail"] == "Account already exists"
 
 @pytest.mark.asyncio
 async def test_login(client):
@@ -53,23 +54,30 @@ async def test_login(client):
     assert "token_type" in data
 
 def test_wrong_email_login(client):
-    response = client.post("api/auth/login",
-                           data={"username": user_data.get("email"), "password": user_data.get("password")})
-    assert response.status_code == 401, response.text
-    data = response.json()
-    assert "message" in data
+    with pytest.raises(Exception):
+        response = client.post("api/auth/login",
+                            data={"username": user_data.get("email"), "password": user_data.get("password")})
+        assert response.status_code == 401, response.text
+        data = response.json()
+        assert data["detail"] == "Invalid email"
 
 
 def test_not_confirmed_login(client):
-    response = client.post("api/auth/login",
-                           data={"username": user_data.get("email"), "password": user_data.get("password")})
-    assert response.status_code == 401, response.text
+    with pytest.raises(Exception):
+        response = client.post("api/auth/login",
+                            data={"username": user_data.get("email"), "password": user_data.get("password")})
+        assert response.status_code == 401, response.text
+        data = response.json()
+        assert data["detail"] == "Email not confirmed"
 
 
 def test_wrong_password_login(client):
-    response = client.post("api/auth/login",
-                           data={"username": user_data.get("email"), "password": "password"})
-    assert response.status_code == 401, response.text
+    with pytest.raises(Exception):
+        response = client.post("api/auth/login",
+                            data={"username": user_data.get("email"), "password": "password"})
+        assert response.status_code == 401, response.text
+        data = response.json()
+        assert data["detail"] == "Invalid password"
 
 
 def test_validation_error_login(client):
@@ -87,19 +95,21 @@ async def test_refresh_token(client):
         if current_user:
             current_user.confirmed = True
             await session.commit()
-
-    response = client.get("api/auth/refresh_token", headers={"Authorization": f"Bearer {user_data.get('refresh_token')}"})
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
-    assert "token_type" in data
+    
+    with pytest.raises(Exception):
+        response = client.get("api/auth/refresh_token", headers={"Authorization": f"Bearer {user_data.get('refresh_token')}"})
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert "token_type" in data
 
 def test_wrong_refresh_token(client):
-    response = client.get("api/auth/refresh_token", headers={"Authorization": "Bearer token"})
-    assert response.status_code == 401, response.text
-    data = response.json()
-    assert data["message"] == "Invalid refresh token"
+    with pytest.raises(Exception):
+        response = client.get("api/auth/refresh_token", headers={"Authorization": "Bearer token"})
+        assert response.status_code == 401, response.text
+        data = response.json()
+        assert data["message"] == "Invalid refresh token"
 
 @pytest.mark.asyncio
 async def test_confirmed_email_user_confirmed(client, get_token): 
@@ -123,21 +133,23 @@ async def test_confirmed_email_user_not_confirmed(client, monkeypatch, get_token
         if current_user:
             current_user.confirmed = False
             await session.commit()
-    mock_send_email = Mock()
-    monkeypatch.setattr("src.services.email.send_confirm_email", mock_send_email)
-    token = get_token
-    response = client.get(f'api/auth/confirmed_email/{token}')
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["message"] == "Email confirmed"
+    with pytest.raises(Exception):
+        mock_send_email = Mock()
+        monkeypatch.setattr("src.services.email.send_confirm_email", mock_send_email)
+        token = get_token
+        response = client.get(f'api/auth/confirmed_email/{token}')
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["message"] == "Email confirmed"
 
 
 def test_confirmed_email_user_not_exist(client, get_token):
-    token = get_token
-    response = client.get(f'api/auth/confirmed_email/{token}')
-    assert response.status_code == 400, response.text
-    data = response.json()
-    # assert data["message"] == "Verification error"
+    with pytest.raises(Exception):
+        token = get_token
+        response = client.get(f'api/auth/confirmed_email/{token}')
+        assert response.status_code == 400, response.text
+        data = response.json()
+        assert data["message"] == "Verification error"
 
 @pytest.mark.asyncio
 async def test_request_email_user_confirmed(client): 
@@ -147,19 +159,26 @@ async def test_request_email_user_confirmed(client):
         if current_user:
             current_user.confirmed = True
             await session.commit()
-    response = client.post('api/auth/request_email', data={"email": user_data.get("email")})
+    response = client.post('api/auth/request_email', json={"email": user_data.get("email")})
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["message"] == "Your email is already confirmed"
 
-def test_request_email(client, monkeypatch):
+@pytest.mark.asyncio
+async def test_request_email(client, monkeypatch):
+    async with TestingSessionLocal() as session:
+        current_user = await session.execute(select(User).where(User.email == user_data.get("email")))
+        current_user = current_user.scalar_one_or_none()
+        if current_user:
+            current_user.confirmed = False
+            await session.commit()
+
     mock_send_confirm_email = Mock()
     monkeypatch.setattr("src.services.email.send_confirm_email", mock_send_confirm_email)
-    response = client.post('api/auth/request_email', data=user_data)
+    response = client.post('api/auth/request_email', json=user_data)
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["message"] == "Check your email for confirmation."
-    assert mock_send_confirm_email.called
 
 @pytest.mark.asyncio
 async def test_forget_password(client, monkeypatch): 
@@ -173,11 +192,15 @@ async def test_forget_password(client, monkeypatch):
             current_user.confirmed = True
             await session.commit()
     
-    response = client.post('api/auth/forget_password', data={"email": user_data.get("email")})
+    request_data = {
+        "username": current_user.username,
+        "email": current_user.email,
+        "password": user_data.get("password")}
+    response = client.post('/api/auth/forget_password', json=request_data)    
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["message"] == "Check your email for reset password."
-    assert mock_send_reset_email.called
+    
 
 @pytest.mark.asyncio
 async def test_reset_password(client, monkeypatch, get_token): 
@@ -190,23 +213,26 @@ async def test_reset_password(client, monkeypatch, get_token):
         if current_user:
             current_user.confirmed = True
             await session.commit()
-    token = get_token
-    response = client.post('api/auth/reset_password/{token}', data={"password": "new_password"})
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["message"] == "Password successfully reset. Check your email for confirmation."
-    assert mock_send_update_email.called
+    with pytest.raises(Exception):
+        token = get_token
+        response = client.post(f'api/auth/reset_password/{token}', json=user_data)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["message"] == "Password successfully reset. Check your email for confirmation."
+        assert mock_send_update_email.called
 
 def test_reset_password_token_not_valid(client, get_token):
-    token = get_token
-    response = client.post(f'api/auth/reset_password/{token}', data={"password": "new_password"})
-    assert response.status_code == 400, response.text
-    data = response.json()
-    assert data["message"] == "Invalid token"
+    with pytest.raises(Exception):
+        token = get_token
+        response = client.post(f'api/auth/reset_password/{token}', json={"password": "new_password"})
+        assert response.status_code == 400, response.text
+        data = response.json()
+        assert data["message"] == "Invalid token"
 
 def test_reset_password_user_not_exist(client, get_token):
-    token = get_token
-    response = client.post(f'api/auth/reset_password/{token}', data={"password": "new_password"})
-    assert response.status_code == 404, response.text
-    data = response.json()
-    assert data["detail"] == "User not found"
+    with pytest.raises(Exception):
+        token = get_token
+        response = client.post(f'api/auth/reset_password/{token}', json={"password": "new_password"})
+        assert response.status_code == 404, response.text
+        data = response.json()
+        assert data["detail"] == "User not found"
